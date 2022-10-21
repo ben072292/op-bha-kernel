@@ -28,6 +28,54 @@ void select_n(bool* checked_set, int* table, int size, int select_size, vector<i
     }
 }
 
+void fill_checked_set_up_helper(int n, int state, int* add_index, bool* checked_set){
+    int pow_set_size = 1 << n;
+    int i, j, temp;
+    for(i= 0; i < pow_set_size; i++){
+        temp = state;
+        for(j = 0; j < n; j++){
+            if((i&(1<<j)) > 0) temp += add_index[j];
+        }
+        checked_set[temp] = true;
+    }
+}
+
+void fill_checked_set_up(int state, int pool_size, bool* checked_set){
+    int* add_index = new int[pool_size -__builtin_popcount(state)];
+    int counter=0, i, index;
+    for(i = 0; i < pool_size; i++){
+        index = (1 << i);
+        if((state & index) == 0) add_index[counter++] = index;
+    }
+    fill_checked_set_up_helper(pool_size-__builtin_popcount(state), state, add_index, checked_set);
+    delete[] add_index;
+}
+
+void fill_checked_set_down_helper(int n, int state, int* sub_index, bool* checked_set){
+    int pow_set_size = (1 << n);
+    int* ret = new int[pow_set_size];
+    int i, j, temp;
+    for(i= 0; i < pow_set_size; i++){
+        temp = state;
+        for(j = 0; j < n; j++){
+            if((i&(1<<j)) > 0) temp -= sub_index[j];
+        }
+        checked_set[temp] = true;
+    }
+}
+
+void fill_checked_set_down(int state, int pool_size, bool* checked_set){
+
+    int* sub_index = new int[__builtin_popcount(state)];
+    int counter = 0, index;
+    for(int i = 0; i < pool_size; i++){
+        index = (1<<i);
+        if((state&index) == index) sub_index[counter++] = index;
+    }
+    fill_checked_set_down_helper(__builtin_popcount(state), state, sub_index, checked_set);
+    delete[] sub_index;
+}
+
 int main(int argc, char* argv[]){
     // Initialize the MPI environment
     MPI_Init(&argc, &argv);
@@ -101,14 +149,10 @@ int main(int argc, char* argv[]){
             if(checked_set[state]) continue;
             double val = model->get_up_set_mass(state);
             if(val < 0.5){
-                int* up_set = model->get_up_set(state);
-                for(int j = 0; j < (1 << (pool_size-__builtin_popcount(state))); j++) checked_set[up_set[j]] = true;
-                delete[] up_set;
+                fill_checked_set_up(state, model->get_pool_size(), checked_set);
             }
             else if (val > 0.5){
-                int* down_set = model->get_down_set(state);
-                for(int j = 0; j < (1 << __builtin_popcount(state)); j++) checked_set[down_set[j]] = true;
-                delete[] down_set;
+                fill_checked_set_down(state, model->get_pool_size(), checked_set);
             }
             double temp = abs(val - 0.5);
             if(temp < local_min){

@@ -12,6 +12,7 @@ class lattice_model{
     public:
     lattice_model(pool_stat *pool_stat, bool gen_prior);
     ~lattice_model();
+    int get_pool_size(){return pool_size;}
     double* get_posterior_probability_map(){return posterior_probability_map;}
     void set_posterior_probability_map(double* val){posterior_probability_map = val;}
     void delete_posterior_probability_map(){delete[] posterior_probability_map;}
